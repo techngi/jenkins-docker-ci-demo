@@ -1,23 +1,51 @@
 pipeline {
     agent any
 
+    environment {
+        AWS_REGION = "ap-southeast-2"
+        ECR_REPO = "914339264187.dkr.ecr.ap-southeast-2.amazonaws.com/my-app"
+    }
+
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build Image') {
             steps {
-                sh 'docker build -t myapp:latest .'
+                script {
+                    COMMIT_SHA = sh(
+                        script: "git rev-parse --short HEAD",
+                        returnStdout: true
+                    ).trim()
+
+                    IMAGE_TAG = "${ECR_REPO}:${COMMIT_SHA}"
+
+                    sh "docker build -t ${IMAGE_TAG} ."
+                }
             }
         }
 
-        stage('Run Container') {
+        stage('Login to ECR') {
             steps {
-                sh 'docker rm -f myapp || true'
-                sh 'docker run -d --name myapp -p 8081:80 myapp:latest'
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws-creds'
+                ]]) {
+                    sh '''
+                    aws ecr get-login-password --region $AWS_REGION | \
+                    docker login --username AWS --password-stdin $ECR_REPO
+                    '''
+                }
+            }
+        }
+
+        stage('Push Image') {
+            steps {
+                sh "docker push ${ECR_REPO}:${COMMIT_SHA}"
             }
         }
     }
