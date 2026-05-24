@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         AWS_REGION = "ap-southeast-2"
+        ECR_REGISTRY = "914339264187.dkr.ecr.ap-southeast-2.amazonaws.com"          
         ECR_REPO = "914339264187.dkr.ecr.ap-southeast-2.amazonaws.com/my-app"
     }
 
